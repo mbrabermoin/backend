@@ -1,7 +1,8 @@
-const pool = require("./config/database");
+const { getPool } = require("./config/database");
 
 async function setupDatabase() {
   try {
+    const pool = await getPool();
     console.log("🔍 Verificando conexión a la base de datos...");
 
     // Test conexión
@@ -28,7 +29,7 @@ async function setupDatabase() {
           id SERIAL PRIMARY KEY,
           username VARCHAR(50) UNIQUE NOT NULL,
           email VARCHAR(100) UNIQUE NOT NULL,
-          password VARCHAR(255) NOT NULL,
+          password VARCHAR(255) NOT NULL
         );
       `);
 
@@ -56,10 +57,7 @@ async function setupDatabase() {
   } catch (error) {
     console.error("❌ Error configurando base de datos:", error.message);
     console.error("Stack:", error.stack);
-  } finally {
-    await pool.end();
-    process.exit();
-  }
+  } 
 }
 
-setupDatabase();
+module.exports = { setupDatabase };

@@ -38,9 +38,13 @@ backend/
    ```
 
 3. **Configurar base de datos:**
-   - Asegúrate de tener PostgreSQL instalado
-   - Crea una base de datos llamada `appdb`
-   - Configura las credenciales en `config/database.js`
+   - Asegúrate de tener PostgreSQL instalado o usa el contenedor Docker.
+   - Crea una base de datos llamada `appdb` (el script `setup-db.js` también lo hará).
+   - Configura las credenciales en `config/database.js` o mediante variables de
+     entorno.
+     La aplicación intentará conectarse automáticamente a `localhost:5432` y, si
+     no responde, probará `5433`. Si deseas forzar otro puerto, exporta
+     `PGPORT`.
 
 4. **Ejecutar setup de DB:**
    ```bash
@@ -49,6 +53,8 @@ backend/
 
 5. **Iniciar servidor:**
    ```bash
+   # si usas docker-compose y mapeo a 5433
+   export PGPORT=5433        # Windows PowerShell: $env:PGPORT = 5433
    npm start
    # o
    node index.js

@@ -5,30 +5,149 @@ const {
   sendValidationError,
 } = require("../utils/response");
 
+const getTrips = async (req, res) => {
+  console.log('[DEBUG] getTrips called');
+  try {
+    const { page, limit } = req.query;
+    
+    let query = "SELECT id, destiny, month, year FROM trips ORDER BY id ASC";
+    let params = [];
+    let hasLimit = limit !== undefined;
+    
+    if (hasLimit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+      query += " LIMIT $1 OFFSET $2";
+      params = [limitNum, offset];
+    }
+
+    const result = await pool.query(query, params);
+    const countResult = await pool.query("SELECT COUNT(*) FROM trips");
+    const totalTrips = Number.parseInt(countResult.rows[0].count);
+
+    let responseData = {
+      trips: result.rows,
+    };
+    
+    if (hasLimit) {
+      const limitNum = parseInt(limit);
+      const pageNum = parseInt(page) || 1;
+      const totalPages = Math.ceil(totalTrips / limitNum);
+      responseData.pagination = {
+        currentPage: pageNum,
+        totalPages,
+        totalTrips,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      };
+    } else {
+      responseData.totalTrips = totalTrips;
+    }
+
+    sendSuccess(res, responseData, "Trips retrieved successfully");
+  } catch (error) {
+    sendError(res, "Error fetching trips", 500, error.message);
+  }
+};
+
+const getExpenses = async (req, res) => {
+  console.log('[DEBUG] getExpenses called');
+  try {
+    const { page, limit, travelId } = req.query;
+    let hasLimit = limit !== undefined;
+
+    let query = "SELECT id, type, amount, responsible, paymentMethod, travelId, travelDescription, date FROM expenses";
+    let countQuery = "SELECT COUNT(*) FROM expenses";
+    let params = [];
+    let countParams = [];
+    let paramIndex = 1;
+
+    if (travelId) {
+      query += " WHERE travelId = $" + paramIndex;
+      countQuery += " WHERE travelId = $1";
+      params.push(travelId);
+      countParams.push(travelId);
+      paramIndex++;
+    }
+
+    query += " ORDER BY id ASC";
+    
+    if (hasLimit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+      query += " LIMIT $" + paramIndex + " OFFSET $" + (paramIndex + 1);
+      params.push(limitNum, offset);
+    }
+
+    const result = await pool.query(query, params);
+    const countResult = await pool.query(countQuery, countParams);
+    const totalExpenses = Number.parseInt(countResult.rows[0].count);
+
+    let responseData = {
+      expenses: result.rows,
+    };
+    
+    if (hasLimit) {
+      const limitNum = parseInt(limit);
+      const pageNum = parseInt(page) || 1;
+      const totalPages = Math.ceil(totalExpenses / limitNum);
+      responseData.pagination = {
+        currentPage: pageNum,
+        totalPages,
+        totalExpenses,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      };
+    } else {
+      responseData.totalExpenses = totalExpenses;
+    }
+
+    sendSuccess(res, responseData, "Expenses retrieved successfully");
+  } catch (error) {
+    sendError(res, "Error fetching expenses", 500, error.message);
+  }
+};
+
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 5 } = req.query;
-    const offset = (page - 1) * limit;
+    const { page, limit } = req.query;
+    let hasLimit = limit !== undefined;
+    
+    let query = "SELECT id, username, email FROM users ORDER BY id ASC";
+    let params = [];
+    
+    if (hasLimit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit);
+      const offset = (pageNum - 1) * limitNum;
+      query += " LIMIT $1 OFFSET $2";
+      params = [limitNum, offset];
+    }
 
-    const result = await pool.query(
-      "SELECT id, name, email FROM users ORDER BY id ASC LIMIT $1 OFFSET $2",
-      [limit, offset],
-    );
-
+    const result = await pool.query(query, params);
     const countResult = await pool.query("SELECT COUNT(*) FROM users");
     const totalUsers = Number.parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(totalUsers / limit);
 
-    const responseData = {
+    let responseData = {
       users: result.rows,
-      pagination: {
-        currentPage: Number.parseInt(page),
+    };
+    
+    if (hasLimit) {
+      const limitNum = parseInt(limit);
+      const pageNum = parseInt(page) || 1;
+      const totalPages = Math.ceil(totalUsers / limitNum);
+      responseData.pagination = {
+        currentPage: pageNum,
         totalPages,
         totalUsers,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      };
+    } else {
+      responseData.totalUsers = totalUsers;
+    }
 
     sendSuccess(res, responseData, "Users retrieved successfully");
   } catch (error) {
@@ -38,11 +157,11 @@ const getUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { username, email } = req.body;
 
     const errors = [];
-    if (!name || name.trim().length < 3) {
-      errors.push("Name must be at least 3 characters long");
+    if (!username || username.trim().length < 3) {
+      errors.push("Username must be at least 3 characters long");
     }
     if (!email?.includes("@")) {
       errors.push("Valid email is required");
@@ -54,19 +173,19 @@ const createUser = async (req, res) => {
 
     // Verificar si el usuario ya existe
     const existingUser = await pool.query(
-      "SELECT id FROM users WHERE email = $1 OR name = $2",
-      [email.toLowerCase(), name.toLowerCase()],
+      "SELECT id FROM users WHERE email = $1 OR username = $2",
+      [email.toLowerCase(), username.toLowerCase()],
     );
 
     if (existingUser.rows.length > 0) {
-      return sendError(res, "User with this email or name already exists", 409);
+      return sendError(res, "User with this email or username already exists", 409);
     }
 
     const result = await pool.query(
-      `INSERT INTO users (name, email) 
+      `INSERT INTO users (username, email) 
        VALUES ($1, $2) 
-       RETURNING id, name, email`,
-      [name.trim(), email.toLowerCase()],
+       RETURNING id, username, email`,
+      [username.trim(), email.toLowerCase()],
     );
 
     const newUser = result.rows[0];
@@ -79,15 +198,41 @@ const createUser = async (req, res) => {
 
 const testConnection = async (req, res) => {
   try {
+    // useful debug info
+    const configDebug = {
+      user: pool.options.user,
+      host: pool.options.host,
+      database: pool.options.database,
+      port: pool.options.port,
+      envPGPORT: process.env.PGPORT,
+    };
+    console.log("[DB DEBUG] using config:", configDebug);
+
     const result = await pool.query("SELECT NOW()");
-    sendSuccess(res, result.rows, "Database connection successful");
+    sendSuccess(res, { ...configDebug, now: result.rows }, "Database connection successful");
   } catch (error) {
-    sendError(res, "Database connection failed", 500, error.message);
+    // return config + original error message so we can debug easily
+    const configDebug = {
+      user: pool.options.user,
+      host: pool.options.host,
+      database: pool.options.database,
+      port: pool.options.port,
+      envPGPORT: process.env.PGPORT,
+    };
+    console.error("[DB DEBUG ERROR]", error.message, configDebug);
+    return res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+      error: error.message,
+      config: configDebug,
+    });
   }
 };
 
 module.exports = {
   getUsers,
+  getExpenses,
+  getTrips,
   createUser,
   testConnection,
 };
