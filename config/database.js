@@ -18,6 +18,12 @@ async function createPoolWithPort(port) {
 }
 
 async function initPool() {
+  if(process.env.DATABASE_URL){
+    console.log("[DB] DATABASE_URL defined, using it for connection");
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    await pool.query("SELECT 1"); 
+    return pool;
+  }
   if (process.env.PGPORT) {
     const port = parseInt(process.env.PGPORT, 10);
     console.log(`[DB] PGPORT defined, using port ${port}`);

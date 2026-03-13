@@ -22,7 +22,7 @@ app.use(corsMiddleware);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // Import function
-app.post("/admin/sync-sheets", async (req, res) => {
+app.post("/api/admin/sync-sheets", async (req, res) => {
     if (isImporting) {
         return res.status(429).json({ 
             success: false, 

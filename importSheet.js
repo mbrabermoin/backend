@@ -61,13 +61,15 @@ const BRC_2025_URL =
 
 async function importSheet() {
   try {
+    await pool.query(`DROP TABLE IF EXISTS trips;`);
       // Crear tabla trips si no existe
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS trips (
+      CREATE TABLE trips (
         id SERIAL PRIMARY KEY,
         destiny VARCHAR(255),
         month VARCHAR(50),
-        year VARCHAR(50)
+        year VARCHAR(50),
+        dolarExchange DECIMAL(10,2) NOT NULL
       );
     `);
     await pool.query(`TRUNCATE TABLE trips;`);
@@ -89,12 +91,13 @@ async function importSheet() {
       const destiny = row["LUGAR"];
       const month = row["MES"];
       const year = row["AÑO"];
+      const dolarExchange = cleanAmount(row["CAMBIO DOLAR-PESO"]);
         await pool.query(
         `
-        INSERT INTO trips (id, destiny, month, year)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO trips (id, destiny, month, year,dolarExchange)
+        VALUES ($1, $2, $3, $4, $5)
         `,
-        [id, destiny, month, year],
+        [id, destiny, month, year, dolarExchange],
       );
 
       console.log("Inserted:", destiny);
@@ -111,6 +114,7 @@ async function importSheet() {
         paymentMethod VARCHAR(50),
         travelDescription VARCHAR(255),
         travelId VARCHAR(50),
+        exchange VARCHAR(50),
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -201,6 +205,7 @@ async function importSheet() {
       const responsible = row["Responsable"];
       const travelDescription = row["travelDescription"];
       const travelId = row["travelId"];
+      const exchange = row["Cambio"];
       let date = null;
       if (row["Fecha"]) {
         date = parseDate(row["Fecha"]);
@@ -209,10 +214,10 @@ async function importSheet() {
       if (type!=="TOTAL") {
         await pool.query(
         `
-        INSERT INTO expenses (type, amount, responsible, paymentMethod, travelDescription, travelId, date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO expenses (type, amount, responsible, paymentMethod, travelDescription, travelId, exchange, date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `,
-        [type, cost, responsible, null, travelDescription, travelId, date],
+        [type, cost, responsible, null, travelDescription, travelId, exchange, date],
       );
 
       console.log("Inserted:", type);}

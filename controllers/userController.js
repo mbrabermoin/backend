@@ -10,7 +10,7 @@ const getTrips = async (req, res) => {
   try {
     const { page, limit } = req.query;
     
-    let query = "SELECT id, destiny, month, year FROM trips ORDER BY id ASC";
+    let query = "SELECT id, destiny, month, year, dolarExchange FROM trips ORDER BY id ASC";
     let params = [];
     let hasLimit = limit !== undefined;
     
@@ -57,7 +57,7 @@ const getExpenses = async (req, res) => {
     const { page, limit, travelId } = req.query;
     let hasLimit = limit !== undefined;
 
-    let query = "SELECT id, type, amount, responsible, paymentMethod, travelId, travelDescription, date FROM expenses";
+    let query = "SELECT id, type, amount, responsible, paymentMethod, travelId, travelDescription, exchange, date FROM expenses";
     let countQuery = "SELECT COUNT(*) FROM expenses";
     let params = [];
     let countParams = [];
