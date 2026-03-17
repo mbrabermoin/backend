@@ -15,22 +15,17 @@ function parseDate(dateStr) {
   return null;
 }
 
-const isProduction = process.env.DATABASE_URL;
-
-const pool = new Pool(
-  isProduction
-    ? {
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false },
-      }
-    : {
-        user: process.env.PGUSER || "admin",
-        host: process.env.PGHOST || "localhost",
-        database: process.env.PGDATABASE || "appdb",
-        password: process.env.PGPASSWORD || "admin",
-        port: process.env.PGPORT || 5432,
-      }
-);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  user: process.env.PGUSER || "admin",
+  host: process.env.PGHOST || "localhost",
+  database: process.env.PGDATABASE || "appdb",
+  password: process.env.PGPASSWORD || "admin",
+  port: process.env.PGPORT || 5432,
+  ssl: process.env.DATABASE_URL 
+    ? { rejectUnauthorized: false } 
+    : false
+});
 
 function cleanAmount(amountStr) {
   if (!amountStr || amountStr.trim() === '') return 0;
@@ -71,10 +66,10 @@ const BRC_2025_URL =
 async function importSheet() {
   console.log("Starting import process...");
   try {
-    await pool.query(`DROP TABLE IF EXISTS trips;`);
+    await pool.query(`DROP TABLE IF EXISTS public.trips;`);
       // Crear tabla trips si no existe
     await pool.query(`
-      CREATE TABLE trips (
+      CREATE TABLE public.trips (
         id SERIAL PRIMARY KEY,
         destiny VARCHAR(255),
         month VARCHAR(50),
@@ -82,7 +77,7 @@ async function importSheet() {
         dolarExchange DECIMAL(10,2) NOT NULL
       );
     `);
-    await pool.query(`TRUNCATE TABLE trips;`);
+    await pool.query(`TRUNCATE TABLE public.trips;`);
     const responseTrips = await axios.get(TRIPS_URL);
     const resultsTrips = [];
 
@@ -104,7 +99,7 @@ async function importSheet() {
       const dolarExchange = cleanAmount(row["CAMBIO DOLAR-PESO"]);
         await pool.query(
         `
-        INSERT INTO trips (id, destiny, month, year,dolarExchange)
+        INSERT INTO public.trips (id, destiny, month, year,dolarExchange)
         VALUES ($1, $2, $3, $4, $5)
         `,
         [id, destiny, month, year, dolarExchange],
@@ -114,9 +109,9 @@ async function importSheet() {
       
     }
 
-    await pool.query(`DROP TABLE IF EXISTS expenses;`);
+    await pool.query(`DROP TABLE IF EXISTS public.expenses;`);
     await pool.query(`
-      CREATE TABLE expenses (
+      CREATE TABLE public.expenses (
         id SERIAL PRIMARY KEY,
         type VARCHAR(100) NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
@@ -128,7 +123,7 @@ async function importSheet() {
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    await pool.query(`TRUNCATE TABLE expenses;`);
+    await pool.query(`TRUNCATE TABLE public.expenses;`);
 
     console.log("Tabla expenses limpiada");
 
@@ -224,7 +219,7 @@ async function importSheet() {
       if (type!=="TOTAL") {
         await pool.query(
         `
-        INSERT INTO expenses (type, amount, responsible, paymentMethod, travelDescription, travelId, exchange, date)
+        INSERT INTO public.expenses (type, amount, responsible, paymentMethod, travelDescription, travelId, exchange, date)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `,
         [type, cost, responsible, null, travelDescription, travelId, exchange, date],
