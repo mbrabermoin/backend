@@ -1,74 +1,58 @@
 const { Pool } = require("pg");
 
-// build base configuration from env (except port)
-const baseConfig = {
-  user: process.env.PGUSER || "admin",
-  host: process.env.PGHOST || "localhost",
-  database: process.env.PGDATABASE || "appdb",
-  password: process.env.PGPASSWORD || "admin",
-};
-
 let pool;
 
-async function createPoolWithPort(port) {
-  const p = new Pool({ ...baseConfig, port });
-  // quick sanity check
-  await p.query("SELECT 1");
-  return p;
-}
+/**
+ * Inicializa el pool de conexiones. 
+ * Si ya existe, devuelve la instancia actual (Singleton).
+ */
+const initPool = () => {
+  if (pool) return pool;
 
-async function initPool() {
-  if(process.env.DATABASE_URL){
-    console.log("[DB] DATABASE_URL defined, using it for connection");
-    pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-    await pool.query("SELECT 1"); 
-    return pool;
-  }
-  if (process.env.PGPORT) {
-    const port = parseInt(process.env.PGPORT, 10);
-    console.log(`[DB] PGPORT defined, using port ${port}`);
-    pool = await createPoolWithPort(port);
+  // Si estamos en Render, DATABASE_URL estará definida
+  if (process.env.DATABASE_URL) {
+    console.log("[DB] Producción detectada: Usando DATABASE_URL");
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }, // Requerido para Supabase en Render
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 10,
+    });
   } else {
-    // try default ports in order
-    const portsToTry = [5432, 5433];
-    for (const port of portsToTry) {
-      try {
-        console.log(`[DB] attempting connection on port ${port}`);
-        pool = await createPoolWithPort(port);
-        console.log(`[DB] connected using port ${port}`);
-        break;
-      } catch (err) {
-        console.warn(`[DB] port ${port} failed: ${err.message}`);
-        // swallow and continue
-      }
-    }
-    if (!pool) {
-      console.error("[DB] could not connect on any known port");
-      //process.exit(1);
-    }
+    // Configuración para tu entorno Local
+    console.log("[DB] Entorno local detectado: Usando variables PG");
+    pool = new Pool({
+      user: process.env.PGUSER || "admin",
+      host: process.env.PGHOST || "localhost",
+      database: process.env.PGDATABASE || "appdb",
+      password: process.env.PGPASSWORD || "admin",
+      port: parseInt(process.env.PGPORT, 10) || 5432,
+    });
   }
 
+  // Manejadores de eventos del Pool
   pool.on("connect", () => {
-    console.log("✅ Connected to PostgreSQL database");
+    console.log("✅ Conexión establecida con PostgreSQL");
   });
 
   pool.on("error", (err) => {
-    console.error("❌ Database error:", err.message);
-    // Don't exit on error - just log it
+    console.error("❌ Error inesperado en el Pool de base de datos:", err.message);
   });
-}
 
-const getPool = async () => {
-  if (!pool) {
-    await initPool();
-  }
   return pool;
 };
 
 module.exports = {
+  /**
+   * Ejecuta una consulta usando el pool unificado.
+   */
   query: async (text, params) => {
-    const p = await getPool(); 
+    const p = initPool();
     return p.query(text, params);
   },
-  getPool // Por si necesitas el objeto pool completo en otro lado
+  /**
+   * Devuelve el pool por si se necesita para transacciones o clientes manuales.
+   */
+  getPool: () => initPool()
 };
