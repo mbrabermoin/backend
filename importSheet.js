@@ -16,11 +16,15 @@ function parseDate(dateStr) {
 }
 
 const pool = new Pool({
-  user: "admin",
-  host: "localhost",
-  database: "appdb",
-  password: "admin",
+  connectionString: process.env.DATABASE_URL,
+  user: process.env.PGUSER || "admin",
+  host: process.env.PGHOST || "localhost",
+  database: process.env.PGDATABASE || "appdb",
+  password: process.env.PGPASSWORD || "admin",
   port: process.env.PGPORT || 5432,
+  ssl: process.env.DATABASE_URL 
+    ? { rejectUnauthorized: false } 
+    : false
 });
 
 function cleanAmount(amountStr) {
@@ -60,6 +64,7 @@ const BRC_2025_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzheqd-dJNyaSL4m0EoCM1K4Jir9YlV9EQUVKrJiNKhQs-0TLbIGZkVmpw2fnX7MzJWOA0NSAzsdGZ/pub?gid=323108715&single=true&output=csv"
 
 async function importSheet() {
+  console.log("Starting import process...");
   try {
     await pool.query(`DROP TABLE IF EXISTS trips;`);
       // Crear tabla trips si no existe
