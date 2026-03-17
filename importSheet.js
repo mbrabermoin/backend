@@ -17,9 +17,12 @@ function parseDate(dateStr) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  // Forzamos al pooler a mirar SIEMPRE el esquema public
-  options: "-c search_path=public" 
+  ssl: {
+    rejectUnauthorized: false
+  },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 function cleanAmount(amountStr) {
   if (!amountStr || amountStr.trim() === '') return 0;
@@ -60,6 +63,7 @@ const BRC_2025_URL =
 async function importSheet() {
   console.log("Starting import process...");
   try {
+    await pool.query('SET search_path TO public;');
     await pool.query(`DROP TABLE IF EXISTS public.trips;`);
       // Crear tabla trips si no existe
     await pool.query(`
