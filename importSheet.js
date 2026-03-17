@@ -2,7 +2,7 @@ import axios from "axios";
 import csv from "csv-parser";
 import { Readable } from "stream";
 // IMPORTANTE: Importamos la conexión unificada
-import db from "./database.js"; 
+import db from "./config/database.js"; 
 
 function parseDate(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return null;
