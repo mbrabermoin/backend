@@ -11,10 +11,10 @@ let pool;
  */
 const initPool = () => {
   console.log("[DEBUG] Intentando conectar a:", process.env.DATABASE_URL.split('@')[1]);
-  if (pool) {
+  /*if (pool) {
     console.log("[DB] Usando pool existente",pool); 
     return pool;
-  }
+  }*/
   // Si estamos en Render, DATABASE_URL estará definida
   if (process.env.DATABASE_URL) {
     console.log("[DB] Producción detectada: Usando DATABASE_URL");
