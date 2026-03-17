@@ -1,6 +1,3 @@
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-
 const { Pool } = require("pg");
 
 let pool;
@@ -10,20 +7,17 @@ let pool;
  * Si ya existe, devuelve la instancia actual (Singleton).
  */
 const initPool = () => {
-  console.log("[DEBUG] Intentando conectar a:", process.env.DATABASE_URL.split('@')[1]);
-  /*if (pool) {
-    console.log("[DB] Usando pool existente",pool); 
-    return pool;
-  }*/
+  if (pool) return pool;
+
   // Si estamos en Render, DATABASE_URL estará definida
   if (process.env.DATABASE_URL) {
     console.log("[DB] Producción detectada: Usando DATABASE_URL");
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false }, // Requerido para Supabase en Render
-      connectionTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,
-      max: 5,
+      max: 10,
     });
   } else {
     // Configuración para tu entorno Local

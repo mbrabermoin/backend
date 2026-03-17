@@ -1,6 +1,3 @@
-const dns = require('node:dns');
-dns.setDefaultResultOrder('ipv4first');
-
 require('dotenv').config();
 const { setupDatabase } = require("./setup-db");
 const { importSheet } = require("./importSheet"); 
