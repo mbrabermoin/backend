@@ -10,6 +10,7 @@ let pool;
  * Si ya existe, devuelve la instancia actual (Singleton).
  */
 const initPool = () => {
+  console.log("[DEBUG] Intentando conectar a:", process.env.DATABASE_URL.split('@')[1]);
   if (pool) return pool;
 
   // Si estamos en Render, DATABASE_URL estará definida
