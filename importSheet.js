@@ -69,25 +69,14 @@ const BRC_2025_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzheqd-dJNyaSL4m0EoCM1K4Jir9YlV9EQUVKrJiNKhQs-0TLbIGZkVmpw2fnX7MzJWOA0NSAzsdGZ/pub?gid=323108715&single=true&output=csv"
 
 async function importSheet() {
-  console.log("--- 🔄 INICIANDO IMPORTACIÓN ---");
-  const client = await pool.connect(); // Esto forzará a Node a conectar o morir
-  
+  console.log("Starting import process...");
   try {
-    console.log("✅ Conexión establecida con éxito");
-    
-    // Cambia tus queries para usar 'client' en lugar de 'pool' dentro de la función
-    // para asegurar que usas la misma sesión de conexión.
-    await client.query('TRUNCATE TABLE public.trips CASCADE;');
-    console.log("✅ Tabla trips truncada");
+    await pool.query(`DROP TABLE IF EXISTS trips;`);
 
-    // ... (resto de tu código usando client.query)
 
+    console.log("Import success 🚀");
   } catch (err) {
-    console.error("❌ ERROR EN IMPORTACIÓN:", err.stack);
-    throw err;
-  } finally {
-    client.release(); // Muy importante liberar la conexión
-    console.log("--- 🔚 PROCESO TERMINADO ---");
+    console.error("ERROR:", err);
   }
 }
 
