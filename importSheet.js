@@ -15,17 +15,22 @@ function parseDate(dateStr) {
   return null;
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  user: process.env.PGUSER || "admin",
-  host: process.env.PGHOST || "localhost",
-  database: process.env.PGDATABASE || "appdb",
-  password: process.env.PGPASSWORD || "admin",
-  port: process.env.PGPORT || 5432,
-  ssl: process.env.DATABASE_URL 
-    ? { rejectUnauthorized: false } 
-    : false
-});
+const isProduction = process.env.DATABASE_URL;
+
+const pool = new Pool(
+  isProduction
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      }
+    : {
+        user: process.env.PGUSER || "admin",
+        host: process.env.PGHOST || "localhost",
+        database: process.env.PGDATABASE || "appdb",
+        password: process.env.PGPASSWORD || "admin",
+        port: process.env.PGPORT || 5432,
+      }
+);
 
 function cleanAmount(amountStr) {
   if (!amountStr || amountStr.trim() === '') return 0;
