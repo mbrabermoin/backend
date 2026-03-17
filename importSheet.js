@@ -68,7 +68,7 @@ const BRC_2025_URL =
   const PANAMA_2026_URL = 
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzheqd-dJNyaSL4m0EoCM1K4Jir9YlV9EQUVKrJiNKhQs-0TLbIGZkVmpw2fnX7MzJWOA0NSAzsdGZ/pub?gid=323108715&single=true&output=csv"
 
-export async function importSheet() {
+async function importSheet() {
   console.log("--- 🔄 INICIANDO IMPORTACIÓN ---");
   const client = await pool.connect(); // Esto forzará a Node a conectar o morir
   
