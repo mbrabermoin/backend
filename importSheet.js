@@ -17,16 +17,10 @@ function parseDate(dateStr) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  user: process.env.PGUSER || "admin",
-  host: process.env.PGHOST || "localhost",
-  database: process.env.PGDATABASE || "appdb",
-  password: process.env.PGPASSWORD || "admin",
-  port: process.env.PGPORT || 5432,
-  ssl: process.env.DATABASE_URL 
-    ? { rejectUnauthorized: false } 
-    : false
+  ssl: { rejectUnauthorized: false },
+  // Forzamos al pooler a mirar SIEMPRE el esquema public
+  options: "-c search_path=public" 
 });
-
 function cleanAmount(amountStr) {
   if (!amountStr || amountStr.trim() === '') return 0;
   
