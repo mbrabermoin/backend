@@ -72,7 +72,167 @@ async function importSheet() {
   console.log("Starting import process...");
   try {
     await pool.query(`DROP TABLE IF EXISTS trips;`);
+      // Crear tabla trips si no existe
+    await pool.query(`
+      CREATE TABLE trips (
+        id SERIAL PRIMARY KEY,
+        destiny VARCHAR(255),
+        month VARCHAR(50),
+        year VARCHAR(50),
+        dolarExchange DECIMAL(10,2) NOT NULL
+      );
+    `);
+    await pool.query(`TRUNCATE TABLE trips;`);
+    const responseTrips = await axios.get(TRIPS_URL);
+    const resultsTrips = [];
 
+    await new Promise((resolve, reject) => {
+      Readable.from(responseTrips.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          resultsTrips.push(row);
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    for (const row of resultsTrips) {
+      const id = row["ID"];
+      const destiny = row["LUGAR"];
+      const month = row["MES"];
+      const year = row["AÑO"];
+      const dolarExchange = cleanAmount(row["CAMBIO DOLAR-PESO"]);
+        await pool.query(
+        `
+        INSERT INTO trips (id, destiny, month, year,dolarExchange)
+        VALUES ($1, $2, $3, $4, $5)
+        `,
+        [id, destiny, month, year, dolarExchange],
+      );
+
+      console.log("Inserted:", destiny);
+      
+    }
+
+    await pool.query(`DROP TABLE IF EXISTS expenses;`);
+    await pool.query(`
+      CREATE TABLE expenses (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(100) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        responsible VARCHAR(100),
+        paymentMethod VARCHAR(50),
+        travelDescription VARCHAR(255),
+        travelId VARCHAR(50),
+        exchange VARCHAR(50),
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await pool.query(`TRUNCATE TABLE expenses;`);
+
+    console.log("Tabla expenses limpiada");
+
+    
+    const responseCancun = await axios.get(CANCUN_2024_URL);
+    const responseMardel = await axios.get(MARDEL_ENERO_2025_URL);
+    const responseBrc = await axios.get(BRC_2025_URL);
+    const responseCarilo = await axios.get(CARILO_2025_URL);
+    const responseBuzios = await axios.get(BUZIOS_2025_URL);
+    const responsePanama = await axios.get(PANAMA_2026_URL);
+
+    const results = [];
+
+    await new Promise((resolve, reject) => {
+      Readable.from(responseCancun.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          results.push({ ...row, travelDescription: "Cancún 2024",travelId:"2" });
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    // MARDEL ENERO 2025
+    await new Promise((resolve, reject) => {
+      Readable.from(responseMardel.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          results.push({ ...row, travelDescription: "Mardel 2025",travelId:"3" });
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    // BRC 2025
+    await new Promise((resolve, reject) => {
+      Readable.from(responseBrc.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          results.push({ ...row, travelDescription: "BRC 2025",travelId:"4" });
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+    
+    // CARILO 2025
+    await new Promise((resolve, reject) => {
+      Readable.from(responseCarilo.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          results.push({ ...row, travelDescription: "Cariló 2025",travelId:"5" });
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    // BUZIOS 2025
+     await new Promise((resolve, reject) => {
+      Readable.from(responseBuzios.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          results.push({ ...row, travelDescription: "Buzios 2025",travelId:"6" });
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    // PANAMA 2026
+     await new Promise((resolve, reject) => {
+      Readable.from(responsePanama.data)
+        .pipe(csv())
+        .on("data", (row) => {
+          results.push({ ...row, travelDescription: "Panama 2026",travelId:"7" });
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    console.log("Filas leídas:", results.length);
+
+    for (const row of results) {
+      const type = row["Descripción"];
+      const cost = cleanAmount(row["Monto"]);
+      const responsible = row["Responsable"];
+      const travelDescription = row["travelDescription"];
+      const travelId = row["travelId"];
+      const exchange = row["Cambio"];
+      let date = null;
+      if (row["Fecha"]) {
+        date = parseDate(row["Fecha"]);
+        console.log(`Parsed date for ${type}:`, date);
+      }
+      if (type!=="TOTAL") {
+        await pool.query(
+        `
+        INSERT INTO expenses (type, amount, responsible, paymentMethod, travelDescription, travelId, exchange, date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `,
+        [type, cost, responsible, null, travelDescription, travelId, exchange, date],
+      );
+
+      console.log("Inserted:", type);}
+      
+    }
 
     console.log("Import success 🚀");
   } catch (err) {
