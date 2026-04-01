@@ -1,4 +1,10 @@
 const { Pool } = require("pg");
+const dns = require("dns");
+
+// Render can fail reaching IPv6-only resolved addresses; prefer IPv4 first.
+if (typeof dns.setDefaultResultOrder === "function") {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 let pool;
 
