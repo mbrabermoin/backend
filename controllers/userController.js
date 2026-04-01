@@ -9,21 +9,90 @@ const getTrips = async (req, res) => {
   console.log('[DEBUG] getTrips called');
   try {
     const { page, limit } = req.query;
-    
-    let query = "SELECT id, destiny, month, year, dolarExchange FROM trips ORDER BY id ASC";
+
     let params = [];
     let hasLimit = limit !== undefined;
-    
+    let pageNum = 1;
+    let limitNum;
+
     if (hasLimit) {
-      const pageNum = parseInt(page) || 1;
-      const limitNum = parseInt(limit);
+      pageNum = Number.parseInt(page, 10) || 1;
+      limitNum = Number.parseInt(limit, 10);
+
+      if (!Number.isInteger(limitNum) || limitNum <= 0) {
+        return sendValidationError(res, ["limit must be a positive integer"]);
+      }
+
+      if (!Number.isInteger(pageNum) || pageNum <= 0) {
+        return sendValidationError(res, ["page must be a positive integer"]);
+      }
+    }
+
+    const tableResult = await pool.query(
+      `SELECT table_schema
+       FROM information_schema.tables
+       WHERE table_name = 'trips'
+         AND table_schema NOT IN ('pg_catalog', 'information_schema')
+       ORDER BY CASE WHEN table_schema = 'public' THEN 0 ELSE 1 END, table_schema
+       LIMIT 1`,
+    );
+
+    if (tableResult.rows.length === 0) {
+      return sendError(res, "Trips table does not exist", 500);
+    }
+
+    const tableSchema = tableResult.rows[0].table_schema;
+
+    const columnsResult = await pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = $1 AND table_name = 'trips'
+       ORDER BY ordinal_position`,
+      [tableSchema],
+    );
+
+    if (columnsResult.rows.length === 0) {
+      return sendError(res, "Trips table has no readable columns", 500);
+    }
+
+    const columns = new Set(columnsResult.rows.map((row) => row.column_name));
+    const pickColumn = (...candidates) => candidates.find((candidate) => columns.has(candidate));
+
+    const idColumn = pickColumn("id");
+    const destinyColumn = pickColumn("destiny", "destination", "travelDescription", "description");
+    const monthColumn = pickColumn("month", "mes");
+    const yearColumn = pickColumn("year", "anio");
+    const exchangeColumn = pickColumn(
+      "dolarExchange",
+      "dollarExchange",
+      "exchange",
+      "usdExchange",
+      "cambio",
+      "cambioDolar",
+    );
+
+    const selectedColumns = [];
+    if (idColumn) selectedColumns.push(`${idColumn} AS id`);
+    if (destinyColumn) selectedColumns.push(`${destinyColumn} AS destiny`);
+    if (monthColumn) selectedColumns.push(`${monthColumn} AS month`);
+    if (yearColumn) selectedColumns.push(`${yearColumn} AS year`);
+    if (exchangeColumn) selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
+
+    const quoteIdent = (value) => `"${value.replace(/"/g, '""')}"`;
+    const tableRef = `${quoteIdent(tableSchema)}.${quoteIdent("trips")}`;
+    const selectClause = selectedColumns.length > 0 ? selectedColumns.join(", ") : "*";
+    const orderByColumn = idColumn || columnsResult.rows[0].column_name;
+
+    let query = `SELECT ${selectClause} FROM ${tableRef} ORDER BY ${quoteIdent(orderByColumn)} ASC`;
+
+    if (hasLimit) {
       const offset = (pageNum - 1) * limitNum;
       query += " LIMIT $1 OFFSET $2";
       params = [limitNum, offset];
     }
 
     const result = await pool.query(query, params);
-    const countResult = await pool.query("SELECT COUNT(*) FROM trips");
+    const countResult = await pool.query(`SELECT COUNT(*) FROM ${tableRef}`);
     const totalTrips = Number.parseInt(countResult.rows[0].count);
 
     let responseData = {
@@ -31,8 +100,6 @@ const getTrips = async (req, res) => {
     };
     
     if (hasLimit) {
-      const limitNum = parseInt(limit);
-      const pageNum = parseInt(page) || 1;
       const totalPages = Math.ceil(totalTrips / limitNum);
       responseData.pagination = {
         currentPage: pageNum,
