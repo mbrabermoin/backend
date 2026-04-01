@@ -55,8 +55,16 @@ const getTrips = async (req, res) => {
       return sendError(res, "Trips table has no readable columns", 500);
     }
 
-    const columns = new Set(columnsResult.rows.map((row) => row.column_name));
-    const pickColumn = (...candidates) => candidates.find((candidate) => columns.has(candidate));
+    const columnsLower = new Map(
+      columnsResult.rows.map((row) => [row.column_name.toLowerCase(), row.column_name]),
+    );
+    const pickColumn = (...candidates) => {
+      for (const candidate of candidates) {
+        const found = columnsLower.get(String(candidate).toLowerCase());
+        if (found) return found;
+      }
+      return undefined;
+    };
 
     const idColumn = pickColumn("id");
     const destinyColumn = pickColumn("destiny", "destination", "travelDescription", "description");
@@ -64,11 +72,15 @@ const getTrips = async (req, res) => {
     const yearColumn = pickColumn("year", "anio");
     const exchangeColumn = pickColumn(
       "dolarExchange",
+      "dolarexchange",
       "dollarExchange",
+      "dollarexchange",
       "exchange",
       "usdExchange",
+      "usdexchange",
       "cambio",
       "cambioDolar",
+      "cambiodolar",
     );
 
     const selectedColumns = [];
@@ -76,7 +88,10 @@ const getTrips = async (req, res) => {
     if (destinyColumn) selectedColumns.push(`${destinyColumn} AS destiny`);
     if (monthColumn) selectedColumns.push(`${monthColumn} AS month`);
     if (yearColumn) selectedColumns.push(`${yearColumn} AS year`);
-    if (exchangeColumn) selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
+    if (exchangeColumn) {
+      selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
+      selectedColumns.push(`${exchangeColumn} AS exchange`);
+    }
 
     const quoteIdent = (value) => `"${value.replace(/"/g, '""')}"`;
     const tableRef = `${quoteIdent(tableSchema)}.${quoteIdent("trips")}`;
