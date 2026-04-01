@@ -44,6 +44,7 @@ const options = {
             destiny: { type: 'string' },
             month: { type: 'string' },
             year: { type: 'string' },
+            dolarExchange: { type: 'number' },
           },
         },
       },
