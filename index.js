@@ -43,7 +43,7 @@ app.post("/api/admin/sync-sheets", async (req, res) => {
         console.error("❌ Error in synchronization:", error.message);
         res.status(500).json({ 
             success: false, 
-            message: "Error in sheet synchronization", 
+        message: `Error in sheet synchronization: ${error.message}`,
             error: error.message 
         });
     } finally {

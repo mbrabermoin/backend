@@ -25,23 +25,50 @@ function cleanAmount(amountStr) {
   return parseFloat(cleaned) || 0;
 }
 
+function normalizeKey(value) {
+  return String(value || "")
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeRow(row) {
+  const normalized = {};
+  for (const [key, value] of Object.entries(row)) {
+    normalized[normalizeKey(key)] = value;
+  }
+  return normalized;
+}
+
 function getFirstValue(row, keys) {
   for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
-      return row[key];
+    const normalizedKey = normalizeKey(key);
+    if (
+      Object.prototype.hasOwnProperty.call(row, normalizedKey) &&
+      row[normalizedKey] !== undefined &&
+      row[normalizedKey] !== null &&
+      String(row[normalizedKey]).trim() !== ""
+    ) {
+      return row[normalizedKey];
     }
   }
   return null;
 }
 
 async function parseCsvFromUrl(url) {
-  const response = await axios.get(url, { timeout: 30000 });
+  const response = await axios.get(url, {
+    timeout: 30000,
+    responseType: "text",
+  });
   const rows = [];
 
   await new Promise((resolve, reject) => {
     Readable.from([response.data])
       .pipe(csv())
-      .on("data", (row) => rows.push(row))
+      .on("data", (row) => rows.push(normalizeRow(row)))
       .on("end", resolve)
       .on("error", reject);
   });
@@ -89,11 +116,11 @@ async function importSheet() {
     }
 
     for (const row of resultsTrips) {
-      const tripId = getFirstValue(row, ["ID", "Id", "id"]);
-      const destiny = getFirstValue(row, ["LUGAR", "Lugar", "destiny", "destination"]);
-      const month = getFirstValue(row, ["MES", "Mes", "month"]);
-      const year = getFirstValue(row, ["AÑO", "ANIO", "A\u00d1O", "year"]);
-      const exchangeRaw = getFirstValue(row, ["CAMBIO DOLAR-PESO", "CAMBIO", "EXCHANGE", "dolarExchange"]);
+      const tripId = getFirstValue(row, ["ID", "id"]);
+      const destiny = getFirstValue(row, ["LUGAR", "destiny", "destination", "travelDescription", "descripcion"]);
+      const month = getFirstValue(row, ["MES", "month"]);
+      const year = getFirstValue(row, ["AÑO", "ANIO", "year"]);
+      const exchangeRaw = getFirstValue(row, ["CAMBIO DOLAR-PESO", "CAMBIO", "EXCHANGE", "dolarExchange", "cambio"]);
 
       if (!tripId || !destiny) {
         continue;
