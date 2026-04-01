@@ -33,10 +33,11 @@ app.post("/api/admin/sync-sheets", async (req, res) => {
     isImporting = true;
     try {
         console.log("🔄 Initiating sheet synchronization...");
-        await importSheet();
+      const summary = await importSheet();
         res.json({ 
             success: true, 
-            message: "¡Success! 🚀" 
+        message: "¡Success! 🚀",
+        data: summary,
         });
     } catch (error) {
         console.error("❌ Error in synchronization:", error.message);

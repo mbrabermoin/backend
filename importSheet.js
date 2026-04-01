@@ -1,8 +1,7 @@
-import axios from "axios";
-import csv from "csv-parser";
-import { Readable } from "stream";
-// IMPORTANTE: Importamos la conexión unificada
-import db from "./config/database.js"; 
+const axios = require("axios");
+const csv = require("csv-parser");
+const { Readable } = require("stream");
+const db = require("./config/database");
 
 function parseDate(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return null;
@@ -26,6 +25,30 @@ function cleanAmount(amountStr) {
   return parseFloat(cleaned) || 0;
 }
 
+function getFirstValue(row, keys) {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
+      return row[key];
+    }
+  }
+  return null;
+}
+
+async function parseCsvFromUrl(url) {
+  const response = await axios.get(url, { timeout: 30000 });
+  const rows = [];
+
+  await new Promise((resolve, reject) => {
+    Readable.from([response.data])
+      .pipe(csv())
+      .on("data", (row) => rows.push(row))
+      .on("end", resolve)
+      .on("error", reject);
+  });
+
+  return rows;
+}
+
 // URLs de Google Sheets (se mantienen igual)
 const TRIPS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzheqd-dJNyaSL4m0EoCM1K4Jir9YlV9EQUVKrJiNKhQs-0TLbIGZkVmpw2fnX7MzJWOA0NSAzsdGZ/pub?gid=11106421&single=true&output=csv";
 const CANCUN_2024_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzheqd-dJNyaSL4m0EoCM1K4Jir9YlV9EQUVKrJiNKhQs-0TLbIGZkVmpw2fnX7MzJWOA0NSAzsdGZ/pub?gid=1294828187&single=true&output=csv";
@@ -38,6 +61,12 @@ const PANAMA_2026_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzheqd
 async function importSheet() {
   console.log("🚀 Starting import process...");
   try {
+    const summary = {
+      tripsImported: 0,
+      expensesImported: 0,
+      expensesBySheet: {},
+    };
+
     // 1. Usamos db.query (del archivo database.js unificado)
     await db.query('SET search_path TO public;');
     
@@ -53,23 +82,34 @@ async function importSheet() {
       );
     `);
 
-    const responseTrips = await axios.get(TRIPS_URL);
-    const resultsTrips = [];
+    const resultsTrips = await parseCsvFromUrl(TRIPS_URL);
 
-    await new Promise((resolve, reject) => {
-      Readable.from(responseTrips.data)
-        .pipe(csv())
-        .on("data", (row) => resultsTrips.push(row))
-        .on("end", resolve)
-        .on("error", reject);
-    });
+    if (resultsTrips.length === 0) {
+      throw new Error("Trips CSV returned 0 rows");
+    }
 
     for (const row of resultsTrips) {
+      const tripId = getFirstValue(row, ["ID", "Id", "id"]);
+      const destiny = getFirstValue(row, ["LUGAR", "Lugar", "destiny", "destination"]);
+      const month = getFirstValue(row, ["MES", "Mes", "month"]);
+      const year = getFirstValue(row, ["AÑO", "ANIO", "A\u00d1O", "year"]);
+      const exchangeRaw = getFirstValue(row, ["CAMBIO DOLAR-PESO", "CAMBIO", "EXCHANGE", "dolarExchange"]);
+
+      if (!tripId || !destiny) {
+        continue;
+      }
+
       await db.query(
         `INSERT INTO public.trips (id, destiny, month, year, dolarExchange) VALUES ($1, $2, $3, $4, $5)`,
-        [row["ID"], row["LUGAR"], row["MES"], row["AÑO"], cleanAmount(row["CAMBIO DOLAR-PESO"])]
+        [tripId, destiny, month, year, cleanAmount(exchangeRaw || "0")]
       );
+      summary.tripsImported += 1;
     }
+
+    if (summary.tripsImported === 0) {
+      throw new Error("No trips were inserted. Check CSV headers/content in trips sheet.");
+    }
+
     console.log("✅ Trips imported");
 
     // 3. Limpieza y creación de EXPENSES
@@ -99,36 +139,45 @@ async function importSheet() {
     ];
 
     for (const config of sheetConfigs) {
-      const resp = await axios.get(config.url);
-      const rows = [];
-      await new Promise((res, rej) => {
-        Readable.from(resp.data).pipe(csv()).on("data", r => rows.push(r)).on("end", res).on("error", rej);
-      });
+      const rows = await parseCsvFromUrl(config.url);
+      let insertedForSheet = 0;
 
       for (const row of rows) {
-        if (row["Descripción"] && row["Descripción"] !== "TOTAL") {
+        const description = getFirstValue(row, ["Descripción", "Descripcion", "description", "DESCRIPCION"]);
+        const amount = cleanAmount(getFirstValue(row, ["Monto", "monto", "amount"]) || "0");
+
+        if (description && String(description).toUpperCase() !== "TOTAL") {
           await db.query(
             `INSERT INTO public.expenses (type, amount, responsible, travelDescription, travelId, exchange, date)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
-              row["Descripción"], 
-              cleanAmount(row["Monto"]), 
-              row["Responsable"], 
+              description,
+              amount,
+              getFirstValue(row, ["Responsable", "responsable", "responsible"]),
               config.desc, 
               config.id, 
-              row["Cambio"], 
-              parseDate(row["Fecha"])
+              getFirstValue(row, ["Cambio", "cambio", "exchange"]),
+              parseDate(getFirstValue(row, ["Fecha", "fecha", "date"]))
             ]
           );
+          insertedForSheet += 1;
+          summary.expensesImported += 1;
         }
       }
+      summary.expensesBySheet[config.desc] = insertedForSheet;
       console.log(`✅ Imported: ${config.desc}`);
     }
 
+    if (summary.expensesImported === 0) {
+      throw new Error("No expenses were inserted. Check CSV headers/content in expense sheets.");
+    }
+
     console.log("Import success 🚀");
+    return summary;
   } catch (err) {
     console.error("❌ ERROR DURANTE LA IMPORTACIÓN:", err);
+    throw err;
   }
 }
 
-export { importSheet };
+module.exports = { importSheet };
