@@ -88,11 +88,8 @@ const getTrips = async (req, res) => {
     if (destinyColumn) selectedColumns.push(`${destinyColumn} AS destiny`);
     if (monthColumn) selectedColumns.push(`${monthColumn} AS month`);
     if (yearColumn) selectedColumns.push(`${yearColumn} AS year`);
-    if (exchangeColumn) {
-      selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
-      selectedColumns.push(`${exchangeColumn} AS exchange`);
-    }
-
+    if (exchangeColumn) selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
+    
     const quoteIdent = (value) => `"${value.replace(/"/g, '""')}"`;
     const tableRef = `${quoteIdent(tableSchema)}.${quoteIdent("trips")}`;
     const selectClause = selectedColumns.length > 0 ? selectedColumns.join(", ") : "*";
