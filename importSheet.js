@@ -105,6 +105,7 @@ async function importSheet() {
         destiny VARCHAR(255),
         dolarRealExchange DECIMAL(10,2) NOT NULL,
         dolarPesosExchange DECIMAL(10,2) NOT NULL,
+        paidBy VARCHAR(100),
         startDate TIMESTAMP,
         endDate TIMESTAMP
       );
@@ -123,14 +124,15 @@ async function importSheet() {
       const exchangeRealDollar = getFirstValue(row, ["CAMBIO DOLAR-REAL"]);
       const startDate = getFirstValue(row, ["INICIO"]);
       const endDate = getFirstValue(row, ["FIN"]);
+      const paidBy = getFirstValue(row, ["RESPONSABLE"]);
       
       if (!tripId || !destiny) {
         continue;
       }
 
       await db.query(
-        `INSERT INTO public.trips (id, destiny, dolarRealExchange, dolarPesosExchange, startDate, endDate) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [tripId, destiny, cleanAmount(exchangeRealDollar || "0"), cleanAmount(exchangePesosDollar || "0"), parseDate(startDate), parseDate(endDate)]
+        `INSERT INTO public.trips (id, destiny, dolarRealExchange, dolarPesosExchange, startDate, endDate, paidBy) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [tripId, destiny, cleanAmount(exchangeRealDollar || "0"), cleanAmount(exchangePesosDollar || "0"), parseDate(startDate), parseDate(endDate), paidBy]
       );
       summary.tripsImported += 1;
     }
