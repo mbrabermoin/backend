@@ -68,8 +68,11 @@ const getTrips = async (req, res) => {
 
     const idColumn = pickColumn("id");
     const destinyColumn = pickColumn("destiny", "destination", "travelDescription", "description");
-    const exchangeColumn = pickColumn(
-      "dolarExchange"
+    const pesosExchangeColumn = pickColumn(
+      "dolarPesosExchange"
+    );
+    const realExchangeColumn = pickColumn(
+      "dolarRealExchange"
     );
     const startDateColumn = pickColumn(
       "startDate"
@@ -81,7 +84,8 @@ const getTrips = async (req, res) => {
     const selectedColumns = [];
     if (idColumn) selectedColumns.push(`${idColumn} AS id`);
     if (destinyColumn) selectedColumns.push(`${destinyColumn} AS destiny`);
-    if (exchangeColumn) selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
+    if (pesosExchangeColumn) selectedColumns.push(`${pesosExchangeColumn} AS "dolarPesosExchange"`);
+    if (realExchangeColumn) selectedColumns.push(`${realExchangeColumn} AS "dolarRealExchange"`);
     if (startDateColumn) selectedColumns.push(`${startDateColumn} AS "startDate"`);
     if (endDateColumn) selectedColumns.push(`${endDateColumn} AS "endDate"`);
     

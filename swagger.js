@@ -42,9 +42,10 @@ const options = {
           properties: {
             id: { type: 'integer' },
             destiny: { type: 'string' },
-            month: { type: 'string' },
-            year: { type: 'string' },
-            dolarExchange: { type: 'number' },
+            dolarPesosExchange: { type: 'number' },
+            dolarRealExchange: { type: 'number' },
+            startDate: { type: 'string', format: 'date-time' },
+            endDate: { type: 'string', format: 'date-time' },
           },
         },
       },
