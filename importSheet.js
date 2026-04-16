@@ -103,9 +103,9 @@ async function importSheet() {
       CREATE TABLE public.trips (
         id SERIAL PRIMARY KEY,
         destiny VARCHAR(255),
-        month VARCHAR(50),
-        year VARCHAR(50),
         dolarExchange DECIMAL(10,2) NOT NULL
+        startDate TIMESTAMP,
+        endDate TIMESTAMP
       );
     `);
 
@@ -116,19 +116,19 @@ async function importSheet() {
     }
 
     for (const row of resultsTrips) {
-      const tripId = getFirstValue(row, ["ID", "id"]);
-      const destiny = getFirstValue(row, ["LUGAR", "destiny", "destination", "travelDescription", "descripcion"]);
-      const month = getFirstValue(row, ["MES", "month"]);
-      const year = getFirstValue(row, ["AÑO", "ANIO", "year"]);
-      const exchangeRaw = getFirstValue(row, ["CAMBIO DOLAR-PESO", "CAMBIO", "EXCHANGE", "dolarExchange", "cambio"]);
-
+      const tripId = getFirstValue(row, ["ID"]);
+      const destiny = getFirstValue(row, ["LUGAR"]);
+      const exchangeRaw = getFirstValue(row, ["CAMBIO DOLAR-PESO"]);
+      const startDate = getFirstValue(row, ["INICIO"]);
+      const endDate = getFirstValue(row, ["FIN"]);
+      
       if (!tripId || !destiny) {
         continue;
       }
 
       await db.query(
-        `INSERT INTO public.trips (id, destiny, month, year, dolarExchange) VALUES ($1, $2, $3, $4, $5)`,
-        [tripId, destiny, month, year, cleanAmount(exchangeRaw || "0")]
+        `INSERT INTO public.trips (id, destiny, dolarExchange, startDate, endDate) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [tripId, destiny, cleanAmount(exchangeRaw || "0"), parseDate(startDate), parseDate(endDate)]
       );
       summary.tripsImported += 1;
     }
