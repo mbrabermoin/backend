@@ -103,7 +103,7 @@ async function importSheet() {
       CREATE TABLE public.trips (
         id SERIAL PRIMARY KEY,
         destiny VARCHAR(255),
-        dolarExchange DECIMAL(10,2) NOT NULL
+        dolarExchange DECIMAL(10,2) NOT NULL,
         startDate TIMESTAMP,
         endDate TIMESTAMP
       );
@@ -127,7 +127,7 @@ async function importSheet() {
       }
 
       await db.query(
-        `INSERT INTO public.trips (id, destiny, dolarExchange, startDate, endDate) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO public.trips (id, destiny, dolarExchange, startDate, endDate) VALUES ($1, $2, $3, $4, $5)`,
         [tripId, destiny, cleanAmount(exchangeRaw || "0"), parseDate(startDate), parseDate(endDate)]
       );
       summary.tripsImported += 1;
