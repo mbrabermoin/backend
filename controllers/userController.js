@@ -68,27 +68,22 @@ const getTrips = async (req, res) => {
 
     const idColumn = pickColumn("id");
     const destinyColumn = pickColumn("destiny", "destination", "travelDescription", "description");
-    const monthColumn = pickColumn("month", "mes");
-    const yearColumn = pickColumn("year", "anio");
     const exchangeColumn = pickColumn(
-      "dolarExchange",
-      "dolarexchange",
-      "dollarExchange",
-      "dollarexchange",
-      "exchange",
-      "usdExchange",
-      "usdexchange",
-      "cambio",
-      "cambioDolar",
-      "cambiodolar",
+      "dolarExchange"
+    );
+    const startDateColumn = pickColumn(
+      "startDate"
+    );
+    const endDateColumn = pickColumn(
+      "endDate"
     );
 
     const selectedColumns = [];
     if (idColumn) selectedColumns.push(`${idColumn} AS id`);
     if (destinyColumn) selectedColumns.push(`${destinyColumn} AS destiny`);
-    if (monthColumn) selectedColumns.push(`${monthColumn} AS month`);
-    if (yearColumn) selectedColumns.push(`${yearColumn} AS year`);
     if (exchangeColumn) selectedColumns.push(`${exchangeColumn} AS "dolarExchange"`);
+    if (startDateColumn) selectedColumns.push(`${startDateColumn} AS "startDate"`);
+    if (endDateColumn) selectedColumns.push(`${endDateColumn} AS "endDate"`);
     
     const quoteIdent = (value) => `"${value.replace(/"/g, '""')}"`;
     const tableRef = `${quoteIdent(tableSchema)}.${quoteIdent("trips")}`;
