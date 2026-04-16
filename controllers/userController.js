@@ -134,13 +134,20 @@ const getExpenses = async (req, res) => {
     let params = [];
     let countParams = [];
     let paramIndex = 1;
+    const whereClauses = ["LOWER(TRIM(responsible)) IN ('mati', 'juli')"];
 
     if (travelId) {
-      query += " WHERE travelId = $" + paramIndex;
-      countQuery += " WHERE travelId = $1";
+      whereClauses.push("travelId = $" + paramIndex);
       params.push(travelId);
       countParams.push(travelId);
       paramIndex++;
+    }
+
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
+      countQuery += " WHERE " + whereClauses
+        .map((clause, index) => (index === 0 ? clause : "travelId = $1"))
+        .join(" AND ");
     }
 
     query += " ORDER BY id ASC";
